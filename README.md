@@ -15,4 +15,4 @@ Vincent, B. T. (2016). Hierarchical Bayesian estimation and hypothesis testing f
 
 Vincent, B. T., & Stewart, N. (2019, January 30). The case of muddled units in temporal discounting. https://doi.org/10.31234/osf.io/29sgd
 
-Xu. P.,  Gonzalez-Vallejo, C. & Vincent, B. T. (in preparation) The Waiting Experience Is Not What You Think
+Xu. P.,  Gonzalez-Vallejo, C. & Vincent, B. T. (submitted) Waiting in inter-temporal choice tasks affects discounting and subjective time perception.
