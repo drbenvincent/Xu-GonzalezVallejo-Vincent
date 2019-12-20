@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.metrics import log_loss
 import matplotlib.pyplot as plt
 from plotting import plot_data
+from scipy.stats import norm, bernoulli, uniform
 
 
 def calc_AUC(logk, logs, discount_function, max_delay=101):
@@ -332,6 +333,27 @@ class ModifiedRachlin(Model):
         parameter_estimates = pd.concat(rows, ignore_index=True)
         return parameter_estimates
 
+    @staticmethod
+    def generate_responses(designs, params_true, ϵ):
+        """Generate simulated responses for the given designs and parameters"""
+
+        # unpack designs
+        RA = designs["RA"].values
+        DA = designs["DA"].values
+        RB = designs["RB"].values
+        DB = designs["DB"].values
+
+        # unpack parameters
+        k = np.exp(params_true["logk"].values)
+        s = np.exp(params_true["logs"].values)
+
+        VA = RA * (1 / (1 + (k * DA) ** s))
+        VB = RB * (1 / (1 + (k * DB) ** s))
+        decision_variable = VB - VA
+        p_choose_B = ϵ + (1 - 2 * ϵ) * (1 / (1 + np.exp(-1.7 * decision_variable)))
+        responses = bernoulli.rvs(p_choose_B)
+        return pd.DataFrame({"R": responses}), p_choose_B
+
 
 class ModifiedRachlinFreeSlope(Model):
     """modified Rachlin model with a FREE psychometric slope parameter"""
@@ -482,3 +504,130 @@ class ModifiedRachlinFreeSlope(Model):
         parameter_estimates = pd.concat(rows, ignore_index=True)
         return parameter_estimates
 
+
+class HyperbolicFreeSlope(Model):
+    """Hyperbolic model with a FREE psychometric slope parameter"""
+
+    def __init__(self, data):
+        self.data = data
+        self.model = self.build_model()
+
+    def V(self, reward, delay, logk):
+        """Calculate the present subjective value of a given prospect"""
+        k = pm.math.exp(logk)
+        return reward * self.discount_function(delay, k)
+
+    @staticmethod
+    def discount_function(delay, k):
+        """ Hyperbolic discounting"""
+        return 1 / (1.0 + (k * delay))
+
+    @staticmethod
+    def Φ(VA, VB, α, ϵ=0.01):
+        """Psychometric function which converts the decision variable (VB-VA)
+        into a reponse probability. Output corresponds to probability of choosing
+        the delayed reward (option B)."""
+        return ϵ + (1.0 - 2.0 * ϵ) * (1 / (1 + pm.math.exp(-α * (VB - VA))))
+
+    def build_model(self):
+        # decant data into local variables
+        RA = self.data["RA"].values
+        RB = self.data["RB"].values
+        DA = self.data["DA"].values
+        DB = self.data["DB"].values
+        R = self.data["R"].values
+        p = self.data["id"].values
+        n_participants = max(self.data.id) + 1
+
+        # group is a lookup array for group of each participant
+        temp = np.array([self.data["id"].values, self.data["condition"].values]).T
+        temp = np.unique(temp, axis=0)
+        group = temp[:, 1]
+
+        n_groups = np.max(group) + 1
+        g = [0, 1, 2, 3]
+
+        with pm.Model() as model:
+            # Hyperpriors
+            mu_logk = pm.Normal("mu_logk", mu=math.log(1 / 30), sd=2, shape=n_groups)
+            sigma_logk = pm.Exponential("sigma_logk", 10, shape=n_groups)
+
+            # Priors over parameters for each participant
+            logk = pm.Normal(
+                "logk", mu=mu_logk[group], sd=sigma_logk[group], shape=n_participants
+            )
+
+            # α = pm.Uniform('α', lower=0, upper=50, shape=n_participants)
+
+            BoundedNormal = pm.Bound(pm.Normal, lower=0.0)
+            α = BoundedNormal("α", mu=1.7, sd=3, shape=n_participants)
+
+            # group level inferences, unattached from the data
+            group_logk = pm.Normal(
+                "group_logk", mu=mu_logk[g], sd=sigma_logk[g], shape=4
+            )
+
+            # Choice function: psychometric
+            P = pm.Deterministic(
+                "P", self.Φ(self.V(RA, DA, logk[p]), self.V(RB, DB, logk[p]), α[p])
+            )
+
+            # Likelihood of observations
+            R = pm.Bernoulli("R", p=P, observed=R)
+
+        return model
+
+    def calc_results(self, expt):
+        rows = []
+        n_participants = get_n_participants(self.data)
+        for id in range(n_participants):
+
+            # get trace from this participant
+            logk = self.posterior_samples["logk"][:, id]
+            α = self.posterior_samples["α"][:, id]
+            P_chooseB = self.posterior_samples["P"][:, id]
+
+            Ppredicted = self.posterior_samples.P[:, self.data["id"] == id]
+            Ppredicted = np.median(Ppredicted, axis=0)
+
+            Ractual = get_Ractual(id, self.data)
+
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # make row data
+            logk_point_estimate = np.mean(logk)
+            α_point_estimate = np.mean(α)
+            if expt is 1:
+                rowdata = {
+                    "id": [id],
+                    "PID": get_PID(id, self.data),
+                    "logk": [logk_point_estimate],
+                    "α": [α_point_estimate],
+                    "paradigm": [get_paradigm(id, self.data)],
+                    "reward_mag": [get_reward_magnitude(id, self.data)],
+                    "AUC": calc_AUC(
+                        logk_point_estimate, logs_point_estimate, self.discount_function
+                    ),
+                    "percent_predicted": calc_percent_predicted(Ppredicted, Ractual),
+                    "log_loss": calc_log_loss(Ppredicted, Ractual),
+                }
+            elif expt is 2:
+                rowdata = {
+                    "id": [id],
+                    "PID": get_PID(id, self.data),
+                    "logk": [logk_point_estimate],
+                    "α": [α_point_estimate],
+                    "paradigm": [get_paradigm(id, self.data)],
+                    "domain": [get_domain(id, self.data)],
+                    "AUC": calc_AUC(
+                        logk_point_estimate, logs_point_estimate, self.discount_function
+                    ),
+                    "percent_predicted": calc_percent_predicted(Ppredicted, Ractual),
+                    "log_loss": calc_log_loss(Ppredicted, Ractual),
+                }
+            rowdata = pd.DataFrame.from_dict(rowdata)
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            rows.append(rowdata)
+            # print(f'{id+1} of {n_participants}')
+
+        parameter_estimates = pd.concat(rows, ignore_index=True)
+        return parameter_estimates
