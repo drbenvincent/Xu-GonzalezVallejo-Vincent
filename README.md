@@ -13,6 +13,6 @@ Salvatier J., Wiecki T.V., Fonnesbeck C. (2016) Probabilistic programming in Pyt
 
 Vincent, B. T. (2016). Hierarchical Bayesian estimation and hypothesis testing for delay discounting tasks. Behavior Research Methods, 48(4), 1608–1620. http://doi.org/10.3758/s13428-015-0672-2
 
-incent, B. T., & Stewart, N. (2020). The case of muddled units in temporal discounting. _Cognition_. 198, 1-11.  https://doi.org/10.1016/j.cognition.2020.104203
+Vincent, B. T., & Stewart, N. (2020). The case of muddled units in temporal discounting. _Cognition_. 198, 1-11.  https://doi.org/10.1016/j.cognition.2020.104203
 
 Xu. P.,  Gonzalez-Vallejo, C. & Vincent, B. T. (in press) Waiting in inter-temporal choice tasks affects discounting and subjective time perception. Journal of Experimental Psychology: General.
