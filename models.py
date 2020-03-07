@@ -210,9 +210,9 @@ class ModifiedRachlin(Model):
     @staticmethod
     def discount_function(delay, k, s):
         """ This is the MODIFIED Rachlin discount function. This is outlined
-        in Vincent & Stewart (2018).
-        Vincent, B. T., & Stewart, N. (2018, October 16). The case of muddled
-        units in temporal discounting. https://doi.org/10.31234/osf.io/29sgd
+        in Vincent & Stewart (2020).
+        Vincent, B. T., & Stewart, N. (2020). The case of muddled
+        units in temporal discounting. Cognition. https://doi.org/10.1016/j.cognition.2020.104203
         """
         return 1 / (1.0 + (k * delay) ** s)
 
@@ -371,9 +371,9 @@ class ModifiedRachlinFreeSlope(Model):
     @staticmethod
     def discount_function(delay, k, s):
         """ This is the MODIFIED Rachlin discount function. This is outlined
-        in Vincent & Stewart (2018).
-        Vincent, B. T., & Stewart, N. (2018, October 16). The case of muddled
-        units in temporal discounting. https://doi.org/10.31234/osf.io/29sgd
+        in Vincent & Stewart (2020).
+        Vincent, B. T., & Stewart, N. (2020). The case of muddled
+        units in temporal discounting. Cognition https://doi.org/10.1016/j.cognition.2020.104203
         """
         return 1 / (1.0 + (k * delay) ** s)
 
